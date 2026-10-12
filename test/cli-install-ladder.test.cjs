@@ -105,3 +105,20 @@ test('a hostile binary name cannot inject a command into the banner', () => {
     assert.ok(!evil.some((l) => /rm -rf \//.test(l)), platform);
   }
 });
+test('a failed installer no longer exits 0 — its real exit code is returned (#227)', () => {
+  // POSIX: the saved __clirc must be the script's exit code, so the exit
+  // handler's `exitCode === 0` check sees a real failure.
+  const posixLines = script('codex', true).split('\n');
+  assert.equal(posixLines[posixLines.length - 1], 'exit $__clirc');
+  assert.ok(posixLines.includes('__clirc=$?'), 'the installer exit code is captured');
+
+  // The manual branches run nothing: no exit-code plumbing there.
+  const manual = script('codex', false);
+  assert.doesNotMatch(manual, /__clirc/, 'nothing ran, nothing to propagate');
+
+  // Windows: one cmd.exe line — capture right after the installer (call
+  // re-expands %errorlevel% at run time) and exit with it at the end.
+  const win = buildMissingCliScript('codex', 'codex', true, 'win32').split(' & ');
+  assert.ok(win.includes('call set __clirc=%errorlevel%'), 'capture after the installer');
+  assert.equal(win[win.length - 1], 'call exit /b %__clirc%');
+});

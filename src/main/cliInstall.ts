@@ -98,6 +98,9 @@ export function buildMissingCliScript(
         `echo ${rule}`,
         'echo.',
         cmd,
+        // Capture the installer's exit code now: `call` re-expands %errorlevel%
+        // at run time (it would otherwise expand when the /c line is parsed).
+        'call set __clirc=%errorlevel%',
         'echo.',
         'echo   [done] If it succeeded, the agent launches automatically.',
         'echo   If it failed, run the command above manually, then restart the agent.'
@@ -118,7 +121,11 @@ export function buildMissingCliScript(
       if (docs) parts.push(`echo   Docs: ${docs}`);
       parts.push(`echo ${rule}`);
     }
-    return parts.join(' & ');
+    
+    // A failed install must not exit 0: the exit handler relaunches on 0 and
+    // // wipes the manual-fix message (#227). `call` re-expands %__clirc% at run
+    // // time. Only the installer branch sets it, so only it exits with it.
+    // if (cmd) parts.push('call exit /b %__clirc%');return parts.join(' & ');
   }
 
   // unix ($SHELL -lc <script>): one statement per line, single-quoted echo text so
@@ -170,7 +177,10 @@ export function buildMissingCliScript(
       `  echo '    ${cmd}'`,
       ...(docs ? [`  echo '    Docs: ${docs}'`] : []),
       `  echo '  Then restart the agent to launch it.'`,
-      `fi`
+      `fi`,
+      // Return the installer's real exit code: the exit handler reads 0 as
+      // "installed" and relaunches, so a failed install must not exit 0 (#227).
+      `exit $__clirc`
     );
   } else if (rung.nodeMissing) {
     // The honest dead end: no node, and this vendor ships no node-free installer.
