@@ -122,11 +122,11 @@ export function buildMissingCliScript(
       parts.push(`echo ${rule}`);
     }
     
-    // A failed install must not exit 0: the exit handler relaunches on 0 and
-    // // wipes the manual-fix message (#227). `call` re-expands %__clirc% at run
-    // // time. Only the installer branch sets it, so only it exits with it.
-    // if (cmd) parts.push('call exit /b %__clirc%');return parts.join(' & ');
-  }
+  }    // A failed install must not exit 0: the exit handler relaunches on 0 and
+    // wipes the manual-fix message (#227). `call` re-expands %__clirc% at run
+    // time. Only the installer branch sets it, so only it exits with it.
+    if (cmd) parts.push('call exit /b %__clirc%');
+    return parts.join(' & ');
 
   // unix ($SHELL -lc <script>): one statement per line, single-quoted echo text so
   // no shell metacharacter expands. We avoid `!` so any shell with history
